@@ -30,22 +30,144 @@
     </div>
 
     <!-- Main menu -->
-    <div v-if="activeScreen === 'mainmenu'" class="scene-overlay landing-overlay game-landing main-menu-screen">
+    <div v-if="activeScreen === 'mainmenu' && !showMenuSettings" class="scene-overlay landing-overlay game-landing main-menu-screen">
       <div class="game-landing-bg"></div>
       <div class="game-landing-vignette"></div>
 
       <div class="game-landing-center main-menu-center">
-        <p class="main-menu-label">Main Menu</p>
         <nav class="game-menu" aria-label="Main menu">
-          <button type="button" class="game-menu-btn game-menu-btn-primary" @click="goToScreen('auth')">
+          <button type="button" class="game-menu-btn game-menu-btn-primary" @click="goToScreen('play-options')">
             Play
           </button>
-          <button type="button" class="game-menu-btn" @click="goToScreen('missions')">Missions</button>
-          <button type="button" class="game-menu-btn" @click="goToScreen('simulation')">Quick Sail</button>
-          <button type="button" class="game-menu-btn game-menu-btn-ghost" @click="goToScreen('dashboard')">
-            Cadet Hub
+          <button type="button" class="game-menu-btn" @click="goToScreen('auth')" v-if="!isAuthenticated">
+            Login
+          </button>
+          <button type="button" class="game-menu-btn" @click="goToScreen('dashboard')" v-else>
+            Dashboard
+          </button>
+          <button type="button" class="game-menu-btn" @click="openMenuSettings()">
+            Settings
           </button>
         </nav>
+      </div>
+    </div>
+
+    <!-- Play options screen -->
+    <div v-if="activeScreen === 'play-options'" class="scene-overlay landing-overlay game-landing main-menu-screen">
+      <div class="game-landing-bg"></div>
+      <div class="game-landing-vignette"></div>
+
+      <div class="game-landing-center main-menu-center">
+        <nav class="game-menu" aria-label="Play options">
+          <button type="button" class="game-menu-btn game-menu-btn-primary" @click="startQuickSail()">
+            Free Roam
+          </button>
+          <button type="button" class="game-menu-btn" @click="goToTraining()" v-if="isAuthenticated">
+            Training Modules
+          </button>
+          <button type="button" class="game-menu-btn game-menu-btn-ghost" @click="goToScreen('mainmenu')">
+            Back
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Training Modules Screen -->
+    <div v-if="activeScreen === 'training'" class="scene-overlay training-overlay">
+      <div class="training-shell glass-card">
+        <h2>Navigation Training Modules</h2>
+        <p class="training-subtitle">Core competencies for fisheries students</p>
+        
+        <div class="training-grid">
+          <article v-for="module in trainingModules" :key="module.id" class="training-card" :class="{ completed: module.completed }">
+            <div class="training-header">
+              <span class="training-category">{{ module.category }}</span>
+              <span class="training-difficulty">{{ module.difficulty }}</span>
+            </div>
+            <h3>{{ module.title }}</h3>
+            <p>{{ module.description }}</p>
+            <div class="training-meta">
+              <span>⏱ {{ module.duration }}</span>
+              <span v-if="module.completed">✓ Completed</span>
+            </div>
+            <div class="training-objectives">
+              <h4>Learning Objectives:</h4>
+              <ul>
+                <li v-for="objective in module.objectives" :key="objective">{{ objective }}</li>
+              </ul>
+            </div>
+            <button class="menu-btn menu-btn-play" @click="startTrainingModule(module.id)">
+              {{ module.completed ? 'Review' : 'Start Training' }}
+            </button>
+          </article>
+        </div>
+        
+        <div class="landing-actions">
+          <button class="menu-btn menu-btn-settings" @click="goToScreen('play-options')">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings modal -->
+    <div v-if="showMenuSettings" class="menu-settings-modal">
+      <div class="menu-settings-card glass-card">
+        <h2>Settings</h2>
+        <div class="menu-settings-content">
+          <label class="setting-row">
+            <span>Sound Volume</span>
+            <input type="range" v-model="soundVolume" min="0" max="1" step="0.1" />
+          </label>
+          <label class="setting-row">
+            <span>Start Camera</span>
+            <select v-model="menuStartCamera">
+              <option value="chase">Chase Camera</option>
+              <option value="orbit">Orbit Camera</option>
+              <option value="helm">Helm Camera</option>
+            </select>
+          </label>
+          <label class="setting-row">
+            <span>Graphics Quality</span>
+            <select v-model="graphicsQuality">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="ultra">Ultra</option>
+            </select>
+          </label>
+          <label class="setting-row">
+            <span>Water Quality</span>
+            <select v-model="waterQuality">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label class="setting-row">
+            <span>Shadow Quality</span>
+            <select v-model="shadowQuality">
+              <option value="off">Off</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label class="setting-row">
+            <span>UI Scale</span>
+            <select v-model="uiScale">
+              <option value="0.8">Small</option>
+              <option value="1.0">Normal</option>
+              <option value="1.2">Large</option>
+              <option value="1.4">Extra Large</option>
+            </select>
+          </label>
+          <label class="setting-row">
+            <span>Show FPS</span>
+            <input type="checkbox" v-model="showFPS" />
+          </label>
+        </div>
+        <div class="menu-settings-actions">
+          <button class="menu-btn" @click="closeMenuSettings()">Close</button>
+        </div>
       </div>
     </div>
 
@@ -77,7 +199,7 @@
           <button class="nav-btn" :class="{active: dashboardRole==='student'}" @click="dashboardRole='student'">Student Dashboard</button>
           <button class="nav-btn" :class="{active: dashboardRole==='instructor'}" @click="dashboardRole='instructor'">Instructor Dashboard</button>
           <button class="nav-btn" @click="goToScreen('missions')">Mission Select</button>
-          <button class="nav-btn" @click="goToScreen('simulation')">Quick Launch Sim</button>
+          <button class="nav-btn" @click="startQuickSail()">Quick Launch Sim</button>
           <button class="nav-btn" @click="goToScreen('mainmenu')">Main Menu</button>
         </aside>
 
@@ -134,26 +256,6 @@
       </div>
     </div>
 
-    <!-- Mission Select -->
-    <div v-if="activeScreen === 'missions'" class="scene-overlay missions-overlay">
-      <div class="missions-shell glass-card">
-        <h2>Select Navigation Mission</h2>
-        <div class="mission-grid">
-          <article v-for="mission in demoMissions" :key="mission.id" class="mission-card">
-            <h3>{{ mission.title }}</h3>
-            <p>{{ mission.description }}</p>
-            <div class="mission-meta">
-              <span>{{ mission.difficulty }}</span>
-              <span>{{ mission.reward }}</span>
-            </div>
-            <button class="menu-btn menu-btn-play" @click="startMission(mission.id)">Launch</button>
-          </article>
-        </div>
-        <div class="landing-actions">
-          <button class="menu-btn menu-btn-settings" @click="goToScreen('dashboard')">Back</button>
-        </div>
-      </div>
-    </div>
 
     <!-- Client-Side Error Boundary HUD -->
     <div v-if="fatalError" class="fatal-error-hud">
@@ -403,12 +505,29 @@
     <!-- Minimal mission objective box -->
     <div v-if="activeScreen === 'simulation'" class="mission-objective-box">
       <button class="objective-toggle" @click="isObjectiveCollapsed = !isObjectiveCollapsed">
-        <span class="objective-label">Mission Objective</span>
+        <span class="objective-label">{{ activeTrainingModule && isAuthenticated ? 'Training Steps' : 'Mission Objective' }}</span>
         <span class="objective-arrow" :class="{ collapsed: isObjectiveCollapsed }">▾</span>
       </button>
       <div v-if="!isObjectiveCollapsed">
         <h4>{{ currentMissionTitle }}</h4>
-        <p class="objective-text">{{ currentMissionObjective }}</p>
+        <div v-if="activeTrainingModule && isAuthenticated">
+          <div class="training-progress-mini">
+            <div class="training-progress-bar-mini">
+              <div class="training-progress-fill-mini" :style="{ width: trainingProgressPercent + '%' }"></div>
+            </div>
+            <span class="training-step-counter-mini">Step {{ currentTrainingStep + 1 }} of {{ activeTrainingModule.steps.length }}</span>
+          </div>
+          <p class="objective-text training-instruction-text">{{ currentStepInstruction }}</p>
+          <ul class="training-objectives-list">
+            <li v-for="(objective, idx) in activeTrainingModule.objectives" :key="idx" :class="{ completed: idx < currentTrainingStep }">
+              {{ objective }}
+            </li>
+          </ul>
+          <div class="training-feedback-mini" :class="{ success: trainingStepSuccess, error: trainingStepError }">
+            <p>{{ trainingFeedback }}</p>
+          </div>
+        </div>
+        <p v-else class="objective-text">{{ currentMissionObjective }}</p>
       </div>
     </div>
 
@@ -510,6 +629,17 @@
       </div>
     </transition>
 
+    <!-- Island collision warning -->
+    <transition name="fade">
+      <div
+        v-if="islandCollisionWarning && activeScreen === 'simulation'"
+        class="anchor-warning island-collision-warning"
+      >
+        <p>⚠ Shore collision — slow down and steer away from the island</p>
+      </div>
+    </transition>
+
+
     <!-- HTML Audio element -->
     <audio ref="audioPlayer" src="/music.m4a" loop></audio>
   </div>
@@ -519,11 +649,14 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Water } from 'three/examples/jsm/objects/Water.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadOceanSimulation } from './helpers/oceanSimulation.js';
 import { createCommercialFishingTrawler } from './helpers/createFishingTrawler.js';
 import { loadBoatModel } from './helpers/loadBoatModel.js';
+import { normalizeBoatToScene, resolveTargetBoatLength, CHASE_CAM_BEHIND_LOA, CHASE_CAM_LOOK_AHEAD_LOA, CHASE_CAM_HEIGHT_LOA } from './helpers/normalizeBoatScale.js';
+import { SIMULATION_SPAWN, SCENE_WATERLINE_Y, updateSimulationSpawn } from './helpers/sceneEnvironment.js';
+import { loadArchipelago, getDefaultSimHeading, resolveIslandCollisionAccurate, distanceToNearestIslandShore, ISLAND_PROXIMITY_MARGIN, clampToOceanBounds, OCEAN_MAP_HALF_EXTENT } from './helpers/worldIslands.js';
 
 // --- Reactive State ---
 const initComplete = ref(false);
@@ -534,16 +667,21 @@ const soundVolume = ref(0.5);
 const fatalError = ref(null);
 const showMainMenu = ref(true);
 const showMenuSettings = ref(false);
+const isAuthenticated = ref(false);
 const menuStartCamera = ref('chase');
 const simulationRunning = ref(false);
 const uiFirstMode = ref(true);
+const graphicsQuality = ref('high');
+const waterQuality = ref('high');
+const shadowQuality = ref('medium');
+const uiScale = ref('1.0');
+const showFPS = ref(false);
 const activeScreen = ref('landing');
 const authMode = ref('login');
 const dashboardRole = ref('student');
 const achievementPopup = ref('');
 const showCinematicLoading = ref(false);
 const loadingHint = ref('Preparing ocean telemetry');
-const activeMissionId = ref(null);
 const isObjectiveCollapsed = ref(false);
 const stormMode = ref(false);
 const exitHoldActive = ref(false);
@@ -574,11 +712,157 @@ const demoCharts = ref({
   ]
 });
 
-const demoMissions = ref([
-  { id: 'harbor', title: 'Harbor Training', description: 'Master slow-speed turns and docking basics.', difficulty: 'Easy', reward: '+120 XP' },
-  { id: 'storm', title: 'Storm Passage', description: 'Navigate rough water with limited visibility.', difficulty: 'Medium', reward: '+220 XP' },
-  { id: 'docking', title: 'Emergency Docking', description: 'Complete time-critical safe docking procedure.', difficulty: 'Hard', reward: '+300 XP' }
+// Core Navigation Skill Modules for Fisheries Students
+const trainingModules = ref([
+  {
+    id: 'steering-speed',
+    title: 'Basic Steering & Speed Control',
+    category: 'Fundamentals',
+    description: 'Learn essential boat handling skills including throttle control, steering techniques, and speed management.',
+    objectives: [
+      'Accelerate smoothly to cruising speed',
+      'Execute controlled turns while maintaining speed',
+      'Practice gradual deceleration and stopping',
+      'Understand the relationship between speed and turning radius'
+    ],
+    steps: [
+      { instruction: 'Press W to accelerate to 3 knots', check: (stats) => stats.speedKnots >= 3 },
+      { instruction: 'Press A to turn left 90 degrees', check: (stats) => Math.abs(stats.rotationDeg - 90) < 10 },
+      { instruction: 'Press D to turn right 90 degrees', check: (stats) => Math.abs(stats.rotationDeg - 180) < 10 },
+      { instruction: 'Release W to decelerate to 1 knot', check: (stats) => stats.speedKnots <= 1.5 && stats.speedKnots >= 0.5 },
+      { instruction: 'Press S to reverse briefly', check: (stats) => stats.speedKnots < -0.5 },
+      { instruction: 'Return to neutral and stop', check: (stats) => Math.abs(stats.speedKnots) < 0.3 }
+    ],
+    duration: '5-10 minutes',
+    difficulty: 'Beginner',
+    reward: '+100 XP',
+    completed: false
+  },
+  {
+    id: 'harbor',
+    title: 'Harbor Training',
+    category: 'Operations',
+    description: 'Master slow-speed turns and docking basics in a controlled harbor environment.',
+    objectives: [
+      'Navigate through harbor at safe speed',
+      'Execute precise turns around buoys',
+      'Maintain proper distance from other vessels',
+      'Practice emergency stopping procedures'
+    ],
+    steps: [
+      { instruction: 'Enter harbor at speed below 2 knots', check: (stats) => stats.speedKnots < 2 },
+      { instruction: 'Navigate around first buoy marker', check: (stats) => true }, // Would check position
+      { instruction: 'Execute 90-degree turn at buoy', check: (stats) => Math.abs(stats.rotationDeg - 90) < 15 },
+      { instruction: 'Maintain speed between 1-2 knots', check: (stats) => stats.speedKnots >= 1 && stats.speedKnots <= 2 },
+      { instruction: 'Complete harbor circuit', check: (stats) => true }, // Would check position
+      { instruction: 'Come to complete stop at dock', check: (stats) => Math.abs(stats.speedKnots) < 0.2 }
+    ],
+    duration: '10-15 minutes',
+    difficulty: 'Easy',
+    reward: '+120 XP',
+    completed: false
+  },
+  {
+    id: 'docking-anchoring',
+    title: 'Docking & Anchoring Procedures',
+    category: 'Operations',
+    description: 'Master safe docking techniques and proper anchoring procedures for various conditions.',
+    objectives: [
+      'Approach dock at appropriate speed and angle',
+      'Execute parallel parking alongside dock',
+      'Deploy anchor safely in open water',
+      'Retrieve anchor and prepare for departure'
+    ],
+    steps: [
+      { instruction: 'Navigate to dock marker at slow speed', check: (stats) => stats.speedKnots < 2 },
+      { instruction: 'Align boat parallel to dock', check: (stats) => Math.abs(stats.rotationDeg % 180) < 15 },
+      { instruction: 'Approach dock within 5 meters', check: (stats) => true }, // Would check distance to dock
+      { instruction: 'Press H to deploy anchor', check: () => anchor.value.deployed },
+      { instruction: 'Wait for boat to settle', check: (stats) => Math.abs(stats.speedKnots) < 0.1 },
+      { instruction: 'Press H to retract anchor', check: () => !anchor.value.deployed }
+    ],
+    duration: '10-15 minutes',
+    difficulty: 'Intermediate',
+    reward: '+200 XP',
+    completed: false
+  },
+  {
+    id: 'storm',
+    title: 'Storm Passage',
+    category: 'Advanced',
+    description: 'Navigate rough water with limited visibility and challenging conditions.',
+    objectives: [
+      'Maintain boat control in high waves',
+      'Navigate through storm gates',
+      'Keep heading stable despite wind',
+      'Execute safe maneuvers in emergency'
+    ],
+    steps: [
+      { instruction: 'Enter storm zone at reduced speed', check: (stats) => stats.speedKnots < 3 },
+      { instruction: 'Navigate through first storm gate', check: (stats) => true }, // Would check position
+      { instruction: 'Maintain heading within 15 degrees', check: (stats) => true }, // Would check heading stability
+      { instruction: 'Pass second storm gate', check: (stats) => true }, // Would check position
+      { instruction: 'Navigate through rough waves', check: (stats) => true }, // Would check wave handling
+      { instruction: 'Exit storm zone safely', check: (stats) => true } // Would check position
+    ],
+    duration: '15-20 minutes',
+    difficulty: 'Medium',
+    reward: '+220 XP',
+    completed: false
+  },
+  {
+    id: 'map-compass',
+    title: 'Nautical Map & Compass Reading',
+    category: 'Navigation',
+    description: 'Develop essential navigation skills using compass headings and understanding nautical charts.',
+    objectives: [
+      'Read and interpret compass headings',
+      'Navigate to specific waypoints using bearings',
+      'Understand cardinal and intercardinal directions',
+      'Plan and execute a basic navigation route'
+    ],
+    steps: [
+      { instruction: 'Face North (0°) and observe compass', check: (stats) => Math.abs(stats.rotationDeg) < 10 },
+      { instruction: 'Turn to face East (90°)', check: (stats) => Math.abs(stats.rotationDeg - 90) < 10 },
+      { instruction: 'Turn to face South (180°)', check: (stats) => Math.abs(stats.rotationDeg - 180) < 10 },
+      { instruction: 'Turn to face West (270°)', check: (stats) => Math.abs(stats.rotationDeg - 270) < 10 || Math.abs(stats.rotationDeg + 90) < 10 },
+      { instruction: 'Navigate to waypoint at heading 45°', check: (stats) => Math.abs(stats.rotationDeg - 45) < 15 },
+      { instruction: 'Return to starting position', check: (stats) => true } // Would check position
+    ],
+    duration: '10-15 minutes',
+    difficulty: 'Intermediate',
+    reward: '+180 XP',
+    completed: false
+  },
+  {
+    id: 'emergency-docking',
+    title: 'Emergency Docking',
+    category: 'Advanced',
+    description: 'Complete time-critical safe docking procedure under pressure.',
+    objectives: [
+      'Rapidly assess docking situation',
+      'Execute quick approach maneuvers',
+      'Maintain control during emergency stop',
+      'Secure vessel safely under time pressure'
+    ],
+    steps: [
+      { instruction: 'Approach emergency dock zone', check: (stats) => true }, // Would check position
+      { instruction: 'Reduce speed rapidly', check: (stats) => stats.speedKnots < 1.5 },
+      { instruction: 'Align for emergency approach', check: (stats) => Math.abs(stats.rotationDeg % 180) < 20 },
+      { instruction: 'Execute emergency stop', check: (stats) => Math.abs(stats.speedKnots) < 0.3 },
+      { instruction: 'Secure vessel position', check: (stats) => true }, // Would check position
+      { instruction: 'Complete emergency docking', check: (stats) => true } // Would check final position
+    ],
+    duration: '5-10 minutes',
+    difficulty: 'Hard',
+    reward: '+300 XP',
+    completed: false
+  }
 ]);
+
+const activeTrainingModule = ref(null);
+const currentTrainingStep = ref(0);
+const trainingProgress = ref({});
 
 const stats = ref({
   speedKnots: 0,
@@ -590,12 +874,12 @@ const stats = ref({
 });
 
 const physics = ref({
-  thrustForce: 16,
-  dragCoefficient: 0.12,
+  thrustForce: 0.7, // Halved from 1.4 for reduced acceleration
+  dragCoefficient: 0.24,
   waterReactionForce: 0.015,
   mass: 100,
   decelerationRate: 0.96,
-  waveAmplitude: 0.5,
+  waveAmplitude: 0.85,
   waveFrequency: 1.0,
   windForce: 0.05,
   sinkingThreshold: 250,
@@ -622,21 +906,24 @@ const altKeyPressed = ref(false);
 
 // Anchor warning state
 const anchorWarning = ref(false);
+const islandCollisionWarning = ref(false);
+let islandWarningTimerId = null;
 
-// Game mode state
-const gameMode = ref(''); // 'quick-sail' or 'missions'
+// Track if in Quick Sail mode (no achievements)
+const isQuickSailMode = ref(false);
 
 // --- Constants ---
-// Marlow 66 sport-fisher OBJ (textures in same folder as .mtl)
-const BOAT_MODEL_FILE = '/17-marlow66/Marlow66/Marlow66.obj';
+// Trawler GLB model
+const BOAT_MODEL_FILE = '/assets/trawler (1).glb';
 
-const BOAT_TARGET_LENGTH_METERS = 20.0;
-const BOAT_MAX_SPEED = 0.42;
-const BOAT_MAX_REVERSE = 0.14;
+const BOAT_TARGET_LENGTH_METERS = 16.0; // Fishing trawler LOA (~52 ft)
+/** ~1.25 m/s cruise (half speed - HUD: speedVel × 10 = knots, m/s = knots / 1.94384) */
+const BOAT_MAX_SPEED = 0.625;
+const BOAT_MAX_REVERSE = 0.175;
 
-// Chase cam offsets in boat local space (bow = +X)
-const _chaseOffsetBehind = new THREE.Vector3(-28, 8, 0);
-const _chaseOffsetLook = new THREE.Vector3(34, 3.5, 0);
+// Chase cam offsets in boat local space (bow = +X); scaled to LOA in applyChaseCameraScale
+const _chaseOffsetBehind = new THREE.Vector3();
+const _chaseOffsetLook = new THREE.Vector3();
 const _chasePosScratch = new THREE.Vector3();
 const _chaseLookScratch = new THREE.Vector3();
 const _cameraLookScratch = new THREE.Vector3();
@@ -659,9 +946,11 @@ let appRoot = ref(null);
 let canvasContainer = ref(null);
 let audioPlayer = ref(null);
 let renderer, scene, camera, camera2, orbitControls;
-let water, sky, sun;
+let ocean, sky, sun;
 let ambientLight, mainLight;
 let islandGroup;
+/** Resolves when the archipelago GLTF is in the scene (Quick Sail waits on this). */
+let archipelagoLoadPromise = null;
 let environmentPreset = 'day';
 let landingCinematicTime = 0;
 let landingBoatPoseActive = false;
@@ -808,32 +1097,37 @@ const speedGaugeStyle = computed(() => {
   };
 });
 
-const missionObjectives = {
-  harbor: {
-    title: 'Harbor Training',
-    objective: 'Reach checkpoint buoys and maintain safe low-speed control near docks.'
-  },
-  storm: {
-    title: 'Storm Passage',
-    objective: 'Navigate through rough waves, keep heading stable, and pass all storm gates.'
-  },
-  docking: {
-    title: 'Emergency Docking',
-    objective: 'Approach harbor quickly, reduce speed, and align for controlled final docking.'
-  }
-};
-
 const currentMissionTitle = computed(() => {
-  if (!activeMissionId.value || !missionObjectives[activeMissionId.value]) return 'Free Navigation';
-  return missionObjectives[activeMissionId.value].title;
+  if (activeTrainingModule.value && isAuthenticated.value) return activeTrainingModule.value.title;
+  if (isQuickSailMode.value) return 'Quick Sail';
+  return 'Free Navigation';
 });
 
 const currentMissionObjective = computed(() => {
-  if (!activeMissionId.value || !missionObjectives[activeMissionId.value]) {
+  if (isQuickSailMode.value) {
+    return 'Explore the islands: WASD to drive, mouse to look around, C to switch camera. Stay on the open water.';
+  }
+  if (!activeTrainingModule.value) {
     return 'Explore freely: WASD to drive, move the mouse over the view to look around, C to switch camera.';
   }
-  return missionObjectives[activeMissionId.value].objective;
+  return activeTrainingModule.value.description;
 });
+
+// Training Module Computed Properties
+const currentStepInstruction = computed(() => {
+  if (!activeTrainingModule.value) return '';
+  const step = activeTrainingModule.value.steps[currentTrainingStep.value];
+  return step ? step.instruction : '';
+});
+
+const trainingProgressPercent = computed(() => {
+  if (!activeTrainingModule.value) return 0;
+  return ((currentTrainingStep.value + 1) / activeTrainingModule.value.steps.length) * 100;
+});
+
+const trainingStepSuccess = ref(false);
+const trainingStepError = ref(false);
+const trainingFeedback = ref('');
 
 // Clear local error HUD
 function clearError() {
@@ -843,8 +1137,9 @@ function clearError() {
 // Watch parameters to update water shader properties
 function onWaterParamChange() {
   if (uiFirstMode.value) return;
-  if (water) {
-    water.material.uniforms["distortionScale"].value = physics.value.waveAmplitude;
+  if (ocean) {
+    ocean.setWaveDistortion(physics.value.waveAmplitude);
+    ocean.setPlaybackSpeed(physics.value.waveFrequency * (0.5 + physics.value.waveAmplitude * 0.25));
   }
 }
 
@@ -875,33 +1170,129 @@ function closeMenuSettings() {
   showMenuSettings.value = false;
 }
 
+
 function startGame() {
   showMainMenu.value = false;
   showMenuSettings.value = false;
   simulationRunning.value = true;
   activeCamera.value = menuStartCamera.value;
   activeScreen.value = 'simulation';
+  syncWorldForSimulation();
   syncOrbitControlsEnabled();
   if (activeCamera.value === 'chase') snapChaseCamera();
   requestAnimationFrame(() => updateCompassStripViewportWidth());
   mouseLookReady = false;
 }
 
+/** Daylight + visible islands + sim boat pose (missions & Quick Sail). */
+function syncWorldForSimulation() {
+  if (islandGroup) {
+    islandGroup.visible = true;
+    updateSimulationSpawn(islandGroup);
+  }
+  applyEnvironmentPreset('day');
+  landingBoatPoseActive = false;
+  if (boatObject) restoreBoatSimPose();
+}
+
 function isMenuBackdropScreen(screen = activeScreen.value) {
   return screen === 'landing' || screen === 'mainmenu';
 }
 
+// Training Module Functions
+function goToTraining() {
+  if (!isAuthenticated.value) {
+    goToScreen('auth');
+    return;
+  }
+  activeScreen.value = 'training';
+}
+
+function startTrainingModule(moduleId) {
+  if (!isAuthenticated.value) {
+    goToScreen('auth');
+    return;
+  }
+
+  const module = trainingModules.value.find(m => m.id === moduleId);
+  if (!module) return;
+
+  activeTrainingModule.value = module;
+  currentTrainingStep.value = 0;
+  trainingStepSuccess.value = false;
+  trainingStepError.value = false;
+  trainingFeedback.value = '';
+
+  // Start simulation with training mode
+  isQuickSailMode.value = true;
+  startQuickSail();
+}
+
+function exitTraining() {
+  activeTrainingModule.value = null;
+  currentTrainingStep.value = 0;
+  trainingStepSuccess.value = false;
+  trainingStepError.value = false;
+  trainingFeedback.value = '';
+  goToScreen('training');
+}
+
+function checkTrainingStep() {
+  if (!activeTrainingModule.value) return;
+
+  const module = activeTrainingModule.value;
+  const step = module.steps[currentTrainingStep.value];
+
+  if (step && step.check) {
+    const passed = step.check(stats.value);
+    
+    if (passed) {
+      trainingStepSuccess.value = true;
+      trainingStepError.value = false;
+      trainingFeedback.value = '✓ Step completed!';
+      
+      setTimeout(() => {
+        trainingStepSuccess.value = false;
+        trainingFeedback.value = '';
+        
+        // Move to next step
+        if (currentTrainingStep.value < module.steps.length - 1) {
+          currentTrainingStep.value++;
+        } else {
+          // Module completed
+          module.completed = true;
+          trainingFeedback.value = '🎉 Training module completed!';
+          achievementPopup.value = `${module.title} Completed!`;
+          
+          setTimeout(() => {
+            achievementPopup.value = '';
+            exitTraining();
+          }, 3000);
+        }
+      }, 1500);
+    }
+  }
+}
+
 function applySunPosition(elevationDeg, azimuthDeg) {
-  if (!sun || !sky || !water) return;
+  if (!sun || !sky) return;
   const phi = THREE.MathUtils.degToRad(90 - elevationDeg);
   const theta = THREE.MathUtils.degToRad(azimuthDeg);
   sun.setFromSphericalCoords(1, phi, theta);
   sky.material.uniforms.sunPosition.value.copy(sun);
-  water.material.uniforms.sunDirection.value.copy(sun).normalize();
+  ocean?.setSunDirection(sun);
 }
 
 function applyEnvironmentPreset(preset) {
-  if (!renderer || !scene || !sky || !water || environmentPreset === preset) return;
+  if (!renderer || !scene || !sky) return;
+
+  const alreadyOnPreset = environmentPreset === preset;
+  if (alreadyOnPreset) {
+    if (preset === 'day') scene.fog = new THREE.FogExp2(0xc5d8ea, 0.00038);
+    if (islandGroup) islandGroup.visible = true;
+    return;
+  }
+
   environmentPreset = preset;
 
   if (preset === 'sunset') {
@@ -910,9 +1301,11 @@ function applyEnvironmentPreset(preset) {
     sky.material.uniforms.rayleigh.value = 3.4;
     sky.material.uniforms.mieCoefficient.value = 0.014;
     sky.material.uniforms.mieDirectionalG.value = 0.92;
-    water.material.uniforms.sunColor.value.setHex(0xff8c42);
-    water.material.uniforms.waterColor.value.setHex(0x142a52);
-    water.material.uniforms.distortionScale.value = 3.2;
+    ocean?.setWaterColor(0x1a3a52);
+    ocean?.setSunColor(0xffa060);
+    ocean?.setOpacityScale(0.92);
+    ocean?.setWaveDistortion(3.2);
+    ocean?.setPlaybackSpeed(0.55);
     if (ambientLight) {
       ambientLight.color.setHex(0xffb88a);
       ambientLight.intensity = 0.38;
@@ -924,16 +1317,17 @@ function applyEnvironmentPreset(preset) {
     }
     renderer.toneMappingExposure = 1.22;
     scene.fog = new THREE.FogExp2(0x5c3a4a, 0.0016);
-    if (islandGroup) islandGroup.visible = false;
+    if (islandGroup) islandGroup.visible = true;
   } else {
     applySunPosition(8, 180);
     sky.material.uniforms.turbidity.value = 10;
     sky.material.uniforms.rayleigh.value = 2;
     sky.material.uniforms.mieCoefficient.value = 0.005;
     sky.material.uniforms.mieDirectionalG.value = 0.8;
-    water.material.uniforms.sunColor.value.setHex(0xfffcf0);
-    water.material.uniforms.waterColor.value.setHex(0x032430);
-    water.material.uniforms.distortionScale.value = physics.value.waveAmplitude;
+    ocean?.setWaterColor(0x0a3d5c);
+    ocean?.setSunColor(0xfff5e6);
+    ocean?.setOpacityScale(1.02);
+    onWaterParamChange();
     if (ambientLight) {
       ambientLight.color.setHex(0xdbeafe);
       ambientLight.intensity = 0.55;
@@ -944,7 +1338,7 @@ function applyEnvironmentPreset(preset) {
       mainLight.position.set(100, 300, -200);
     }
     renderer.toneMappingExposure = 1.0;
-    scene.fog = null;
+    scene.fog = new THREE.FogExp2(0xc5d8ea, 0.00038);
     if (islandGroup) islandGroup.visible = true;
   }
 }
@@ -964,10 +1358,12 @@ function applyLandingBoatPose() {
 function restoreBoatSimPose() {
   if (!boatObject) return;
   landingBoatPoseActive = false;
-  boatObject.position.set(5, baselineWaterlineY + physics.value.waterlineOffset, 50);
-  boatObject.rotation.set(0, Math.PI / 2, 0);
+  boatObject.position.set(SIMULATION_SPAWN.x, baselineWaterlineY + physics.value.waterlineOffset, SIMULATION_SPAWN.z);
+  const bowHeading = getDefaultSimHeading();
+  boatObject.rotation.set(0, bowHeading, 0);
   boatObject.rotation.z = 0;
   boatObject.scale.setScalar(1);
+  syncCompassVisualHeading(boatRotationToCompassHeading(boatObject.rotation.y), { force: true });
 }
 
 function updateLandingCinematic(delta) {
@@ -1015,10 +1411,28 @@ function onLandingKeyDown(event) {
   proceedFromLandingToMainMenu();
 }
 
+function startQuickSail() {
+  isQuickSailMode.value = true;
+  showCinematicLoading.value = true;
+  loadingHint.value = 'Loading islands & open water...';
+
+  const enterSimulation = () => {
+    showCinematicLoading.value = false;
+    goToScreen('simulation');
+    syncWorldForSimulation();
+  };
+
+  Promise.resolve(archipelagoLoadPromise)
+    .then(enterSimulation)
+    .catch((err) => {
+      console.error('Archipelago not ready for Quick Sail:', err);
+      enterSimulation();
+    });
+}
+
 function goToScreen(screen) {
   activeScreen.value = screen;
   if (screen === 'simulation') {
-    gameMode.value = 'quick-sail';
     simulationRunning.value = true;
     activeCamera.value = menuStartCamera.value;
     syncOrbitControlsEnabled();
@@ -1027,6 +1441,7 @@ function goToScreen(screen) {
     mouseLookReady = false;
   } else {
     simulationRunning.value = false;
+    isQuickSailMode.value = false; // Reset Quick Sail mode when leaving simulation
     cancelExitHold();
     mouseLookReady = false;
     resetCameraLookOffset();
@@ -1035,8 +1450,7 @@ function goToScreen(screen) {
 }
 
 function showAchievement(text) {
-  // Don't show achievements in quick sail mode
-  if (gameMode.value === 'quick-sail') return;
+  if (isQuickSailMode.value) return; // Skip achievements in Quick Sail mode
   achievementPopup.value = text;
   window.setTimeout(() => {
     if (achievementPopup.value === text) achievementPopup.value = '';
@@ -1048,22 +1462,12 @@ function mockAuthenticate() {
   loadingHint.value = 'Authenticating maritime profile';
   window.setTimeout(() => {
     showCinematicLoading.value = false;
+    isAuthenticated.value = true;
     goToScreen('dashboard');
     showAchievement('Welcome aboard, Cadet!');
   }, 1200);
 }
 
-function startMission(missionId) {
-  activeMissionId.value = missionId;
-  gameMode.value = 'missions';
-  showCinematicLoading.value = true;
-  loadingHint.value = `Loading mission: ${missionId}`;
-  window.setTimeout(() => {
-    showCinematicLoading.value = false;
-    startGame();
-    showAchievement(`Mission started: ${missionId.toUpperCase()}`);
-  }, 1400);
-}
 
 function toggleStormMode() {
   stormMode.value = !stormMode.value;
@@ -1071,18 +1475,22 @@ function toggleStormMode() {
     physics.value.waveAmplitude = 2.8;
     physics.value.waveFrequency = 2.1;
     wind.value.speed = 0.9;
-    if (water) {
-      water.material.uniforms["distortionScale"].value = physics.value.waveAmplitude;
-      water.material.uniforms["waterColor"].value.set(0x021018);
+    if (ocean) {
+      ocean.setWaterColor(0x081e30);
+      ocean.setSunColor(0xccccdd);
+      ocean.setOpacityScale(1.08);
+      onWaterParamChange();
     }
     showAchievement('Storm mode engaged');
   } else {
     physics.value.waveAmplitude = 0.5;
     physics.value.waveFrequency = 1.0;
     wind.value.speed = 0.1;
-    if (water) {
-      water.material.uniforms["distortionScale"].value = physics.value.waveAmplitude;
-      water.material.uniforms["waterColor"].value.set(0x032430);
+    if (ocean) {
+      ocean.setWaterColor(0x0a3d5c);
+      ocean.setSunColor(0xfff5e6);
+      ocean.setOpacityScale(1);
+      onWaterParamChange();
     }
     showAchievement('Calm sea restored');
   }
@@ -1278,7 +1686,7 @@ function resetSimulation() {
   sinkingTimer = 0;
 
   if (boatObject) {
-    boatObject.position.set(5, baselineWaterlineY + physics.value.waterlineOffset, 50);
+    boatObject.position.set(SIMULATION_SPAWN.x, baselineWaterlineY + physics.value.waterlineOffset, SIMULATION_SPAWN.z);
     boatObject.rotation.set(0, Math.PI / 2, 0); // bow north (0° compass heading)
     
     if (orbitControls) {
@@ -1871,87 +2279,38 @@ function createRealisticCabinCruiser() {
   return boatGroup;
 }
 
-function expandBoxFromMeshes(root, target) {
-  const box = new THREE.Box3();
-  const temp = new THREE.Box3();
-  root.traverse((node) => {
-    if (!node.isMesh || !node.geometry?.attributes?.position) return;
-    temp.setFromObject(node);
-    if (!Number.isFinite(temp.min.x)) return;
-    box.union(temp);
-  });
-  if (Number.isFinite(box.min.x)) target.copy(box);
+function applyChaseCameraScale(lengthMeters) {
+  _chaseOffsetBehind.set(
+    -lengthMeters * CHASE_CAM_BEHIND_LOA,
+    lengthMeters * CHASE_CAM_HEIGHT_LOA,
+    0
+  );
+  _chaseOffsetLook.set(
+    lengthMeters * CHASE_CAM_LOOK_AHEAD_LOA,
+    lengthMeters * CHASE_CAM_HEIGHT_LOA * 0.45,
+    0
+  );
 }
 
-function centerBoatAtOrigin(root) {
-  const bbox = new THREE.Box3();
-  expandBoxFromMeshes(root, bbox);
-  if (!Number.isFinite(bbox.min.x)) {
-    bbox.setFromObject(root);
-  }
-  const center = new THREE.Vector3();
-  bbox.getCenter(center);
-  root.position.sub(center);
-  root.updateMatrixWorld(true);
-}
-
-function normalizeBoatTransform(meshRoot, { targetLength = 8.0, targetWaterlineY = 13, x = 0, z = 0 } = {}) {
-  const bbox = new THREE.Box3();
-  const size = new THREE.Vector3();
-
-  meshRoot.position.set(0, 0, 0);
-  meshRoot.rotation.set(0, 0, 0);
-  meshRoot.scale.set(1, 1, 1);
-  meshRoot.updateMatrixWorld(true);
-  centerBoatAtOrigin(meshRoot);
-  expandBoxFromMeshes(meshRoot, bbox);
-  if (!Number.isFinite(bbox.min.x)) bbox.setFromObject(meshRoot);
-  bbox.getSize(size);
-
-  const lengthOnZ = size.z > size.x * 1.05;
-
-  const currentLength = Math.max(size.x, size.z) || 1;
-  const s = targetLength / currentLength;
-  meshRoot.scale.setScalar(s);
-  meshRoot.updateMatrixWorld(true);
-  expandBoxFromMeshes(meshRoot, bbox);
-  if (!Number.isFinite(bbox.min.x)) bbox.setFromObject(meshRoot);
-  bbox.getSize(size);
-
-  const draft = size.y * 0.18;
-  const offsetY = -bbox.min.y - draft;
-  const computedWaterlineY = targetWaterlineY + offsetY;
-
-  // Physics root: translateX = forward (+X). OBJ hulls are often authored bow = +Z.
-  const boat = new THREE.Group();
-  boat.name = 'BoatPhysicsRoot';
-
-  if (lengthOnZ) {
-    meshRoot.rotation.y = Math.PI / 2;
-  }
-
-  boat.add(meshRoot);
-  boat.rotation.set(0, Math.PI / 2, 0);
-  boat.position.set(x, computedWaterlineY + physics.value.waterlineOffset, z);
-  boat.updateMatrixWorld(true);
-
-  return { boat, waterlineY: computedWaterlineY };
-}
-
-function finalizeSpawnedBoat() {
+function finalizeSpawnedBoat(modelPath = BOAT_MODEL_FILE) {
   const meshRoot = boatObject;
   if (meshRoot?.parent) meshRoot.parent.remove(meshRoot);
 
-  const { boat, waterlineY } = normalizeBoatTransform(meshRoot, {
-    targetLength: BOAT_TARGET_LENGTH_METERS,
-    targetWaterlineY: 13,
-    x: 5,
-    z: 50
+  if (islandGroup) updateSimulationSpawn(islandGroup);
+
+  const targetLength = resolveTargetBoatLength(modelPath);
+  const { boat, waterlineY, lengthMeters } = normalizeBoatToScene(meshRoot, {
+    targetLength,
+    targetWaterlineY: SCENE_WATERLINE_Y,
+    spawnX: SIMULATION_SPAWN.x,
+    spawnZ: SIMULATION_SPAWN.z,
+    waterlineOffset: physics.value.waterlineOffset
   });
 
   boatObject = boat;
   scene.add(boatObject);
   baselineWaterlineY = waterlineY;
+  applyChaseCameraScale(lengthMeters);
 
   orbitControls.target.copy(boatObject.position);
   orbitControls.update();
@@ -1963,6 +2322,48 @@ function finalizeSpawnedBoat() {
 
   if (isMenuBackdropScreen()) {
     landingBoatPoseActive = false;
+  }
+}
+
+function showIslandCollisionWarning() {
+  islandCollisionWarning.value = true;
+  if (islandWarningTimerId) window.clearTimeout(islandWarningTimerId);
+  islandWarningTimerId = window.setTimeout(() => {
+    islandCollisionWarning.value = false;
+    islandWarningTimerId = null;
+  }, 2800);
+}
+
+function applyIslandCollisionBlocking() {
+  if (!islandGroup || !boatObject) return;
+
+  const resolved = resolveIslandCollisionAccurate(
+    boatObject.position.x,
+    boatObject.position.z,
+    islandGroup
+  );
+  if (resolved.collided) {
+    boatObject.position.x = resolved.x;
+    boatObject.position.z = resolved.z;
+    speedVel *= 0.2;
+    showIslandCollisionWarning();
+    return;
+  }
+
+  const shoreDist = distanceToNearestIslandShore(
+    boatObject.position.x,
+    boatObject.position.z,
+    islandGroup
+  );
+  if (shoreDist < ISLAND_PROXIMITY_MARGIN && Math.abs(speedVel) > 0.08) {
+    showIslandCollisionWarning();
+  }
+
+  const bounded = clampToOceanBounds(boatObject.position.x, boatObject.position.z);
+  if (bounded.x !== boatObject.position.x || bounded.z !== boatObject.position.z) {
+    boatObject.position.x = bounded.x;
+    boatObject.position.z = bounded.z;
+    speedVel *= 0.12;
   }
 }
 
@@ -1980,11 +2381,13 @@ function updateBoatPhysics() {
       return;
     }
 
-    const thrustAcceleration = keyStates["KeyW"] ? physics.value.thrustForce / physics.value.mass : 0;
-    
+    const thrustAcceleration = keyStates["KeyW"]
+      ? physics.value.thrustForce / physics.value.mass
+      : 0;
+
     let reverseAcceleration = 0;
     if (keyStates["KeyS"]) {
-      reverseAcceleration = -0.8 / physics.value.mass;
+      reverseAcceleration = -(physics.value.thrustForce * 0.3) / physics.value.mass;
     }
 
     const dragForce = 0.5 * physics.value.dragCoefficient * speedVel * speedVel;
@@ -2002,19 +2405,25 @@ function updateBoatPhysics() {
       }
     }
 
+    // Check training step completion
+    checkTrainingStep();
+
     if (keyStates["KeyA"]) {
-      const turnFactor = Math.max(0.35, Math.min(1, Math.abs(speedVel) / 0.1));
-      speedRot = 0.028 * turnFactor;
-      angularVelocity = 0.06 * turnFactor;
+      const turnFactor = Math.max(0, Math.min(1, Math.abs(speedVel) / 0.5));
+      speedRot = 0.018 * turnFactor; // Reduced from 0.028 for less responsive steering
+      angularVelocity = 0.04 * turnFactor; // Reduced from 0.06
       turnRadius = 1.0;
     } else if (keyStates["KeyD"]) {
-      const turnFactor = Math.max(0.35, Math.min(1, Math.abs(speedVel) / 0.1));
-      speedRot = -0.028 * turnFactor;
-      angularVelocity = 0.06 * turnFactor;
+      const turnFactor = Math.max(0, Math.min(1, Math.abs(speedVel) / 0.5));
+      speedRot = -0.018 * turnFactor; // Reduced from 0.028
+      angularVelocity = 0.04 * turnFactor; // Reduced from 0.06
       turnRadius = 1.0;
     } else {
-      speedRot = 0;
-      angularVelocity = 0;
+      // Add angular damping for realistic steering drag
+      speedRot *= 0.85; // Gradual slowdown instead of instant stop
+      angularVelocity *= 0.85;
+      if (Math.abs(speedRot) < 0.001) speedRot = 0;
+      if (Math.abs(angularVelocity) < 0.001) angularVelocity = 0;
       turnRadius = 0;
     }
 
@@ -2022,6 +2431,7 @@ function updateBoatPhysics() {
 
     boatObject.rotation.y += speedRot;
     boatObject.translateX(speedVel);
+    applyIslandCollisionBlocking();
 
     // Wave Bobbing
     const waveEffect = Math.sin(performance.now() * 0.001 * physics.value.waveFrequency) * physics.value.waveAmplitude;
@@ -2032,6 +2442,7 @@ function updateBoatPhysics() {
     const windDir = new THREE.Vector3(Math.cos(windRad), 0, Math.sin(windRad));
     const windImpact = windDir.clone().multiplyScalar(wind.value.speed * physics.value.windForce);
     boatObject.position.add(windImpact);
+    applyIslandCollisionBlocking();
 
     const sideImpact = windDir.dot(new THREE.Vector3(1, 0, 0));
     speedRot += sideImpact * 0.0001;
@@ -2289,6 +2700,7 @@ function initThree() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.sortObjects = true;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
@@ -2297,11 +2709,11 @@ function initThree() {
     scene = new THREE.Scene();
 
     // 3. Cameras
-    camera = new THREE.PerspectiveCamera(62, width / height, 1, 30000);
+    camera = new THREE.PerspectiveCamera(62, width / height, 1, OCEAN_MAP_HALF_EXTENT * 4);
     camera.position.set(-18, 24, 82);
-    camera.lookAt(5, 13, 50);
+    camera.lookAt(SIMULATION_SPAWN.x, SCENE_WATERLINE_Y, SIMULATION_SPAWN.z);
 
-    camera2 = new THREE.PerspectiveCamera(75, width / height, 0.2, 30000);
+    camera2 = new THREE.PerspectiveCamera(75, width / height, 0.2, OCEAN_MAP_HALF_EXTENT * 4);
 
     // 4. Lights (Calibrated for high realism)
     ambientLight = new THREE.AmbientLight(0xdbeafe, 0.55);
@@ -2322,24 +2734,7 @@ function initThree() {
     mainLight.shadow.camera.bottom = -d;
     scene.add(mainLight);
 
-    // 5. Water
-    const waterGeometry = new THREE.PlaneGeometry(100000, 100000);
-    water = new Water(waterGeometry, {
-      textureWidth: 1024,
-      textureHeight: 1024,
-      waterNormals: new THREE.TextureLoader().load("helpers/waternormals.jpg", function (texture) {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-      }),
-      sunDirection: new THREE.Vector3(),
-      sunColor: 0xfffcf0,
-      waterColor: 0x032430,
-      distortionScale: physics.value.waveAmplitude,
-      fog: false,
-    });
-    water.rotation.x = -Math.PI / 2;
-    scene.add(water);
-
-    // 6. Sky & Sun
+    // 5. Sky & Sun
     sky = new Sky();
     sky.scale.setScalar(100000);
     scene.add(sky);
@@ -2351,36 +2746,71 @@ function initThree() {
     scene.environment = pmremGenerator.fromScene(sky).texture;
     pmremGenerator.dispose();
 
+    const gltfLoader = new GLTFLoader();
+
+    // 6. Ocean (Three.js Water2)
+    loadOceanSimulation(null, { renderer })
+      .then((oceanApi) => {
+        ocean = oceanApi;
+        scene.add(ocean.root);
+        applyEnvironmentPreset(environmentPreset);
+        onWaterParamChange();
+        if (sun) ocean.setSunDirection(sun);
+        console.info('[HelmQuest] Ocean water ready');
+      })
+      .catch((err) => {
+        console.error('Ocean load error:', err);
+        const fallback = new THREE.Mesh(
+          new THREE.PlaneGeometry(OCEAN_MAP_HALF_EXTENT * 2, OCEAN_MAP_HALF_EXTENT * 2),
+          new THREE.MeshStandardMaterial({ color: 0x032430, roughness: 0.15, metalness: 0.05 })
+        );
+        fallback.rotation.x = -Math.PI / 2;
+        fallback.receiveShadow = true;
+        scene.add(fallback);
+      });
+
     // 7. Orbit Controls
     orbitControls = new OrbitControls(camera, renderer.domElement);
-    orbitControls.target.set(5, 13, 50);
+    orbitControls.target.set(SIMULATION_SPAWN.x, SCENE_WATERLINE_Y, SIMULATION_SPAWN.z);
     orbitControls.maxPolarAngle = Math.PI * 0.485;
-    orbitControls.minDistance = 28.0;
-    orbitControls.maxDistance = 220.0;
+    orbitControls.minDistance = 16.0;
+    orbitControls.maxDistance = OCEAN_MAP_HALF_EXTENT * 0.92;
     orbitControls.enableDamping = true;
     orbitControls.dampingFactor = 0.05;
     orbitControls.update();
 
-    // 8. Load Tropical Island
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.load("helpers/tropical_island/scene.gltf", (gltf) => {
-      islandGroup = gltf.scene;
-      scene.add(islandGroup);
-      islandGroup.scale.set(200, 100, 100);
-      islandGroup.position.set(-900, -10, 50);
-      islandGroup.rotation.y = 1.5;
-      if (environmentPreset === 'sunset') islandGroup.visible = false;
-    }, undefined, (err) => console.error("Island load error: ", err));
+    // 8. Archipelago from public/assets/tropical_island.glb (terrain only, no sky LOD)
+    archipelagoLoadPromise = loadArchipelago(gltfLoader)
+      .then((archipelago) => {
+        islandGroup = archipelago;
+        islandGroup.visible = true;
+        scene.add(islandGroup);
+        const spawn = updateSimulationSpawn(islandGroup);
+        console.info(
+          '[HelmQuest] Archipelago ready:',
+          archipelago.children.length,
+          'islands — spawn',
+          spawn.x.toFixed(0),
+          spawn.z.toFixed(0)
+        );
+        if (activeScreen.value === 'simulation') syncWorldForSimulation();
+        else if (boatObject) restoreBoatSimPose();
+        return archipelago;
+      })
+      .catch((err) => {
+        console.error('Archipelago load error:', err);
+        throw err;
+      });
 
     // 9. Spawn boat: show procedural hull immediately, swap in OBJ when ready
-    const attachBoat = (model) => {
+    const attachBoat = (model, modelPath = BOAT_MODEL_FILE) => {
       if (boatObject?.parent) scene.remove(boatObject);
       boatObject = model;
-      finalizeSpawnedBoat();
+      finalizeSpawnedBoat(modelPath);
     };
 
     const spawnProceduralTrawler = () => {
-      attachBoat(createCommercialFishingTrawler());
+      attachBoat(createCommercialFishingTrawler(), null);
     };
 
     spawnProceduralTrawler();
@@ -2388,7 +2818,7 @@ function initThree() {
     if (BOAT_MODEL_FILE) {
       loadBoatModel(BOAT_MODEL_FILE)
         .then((model) => {
-          attachBoat(model);
+          attachBoat(model, BOAT_MODEL_FILE);
         })
         .catch((err) => {
           console.error(`Boat model failed (${BOAT_MODEL_FILE}):`, err);
@@ -2411,9 +2841,7 @@ function animate() {
 
     if (menuBackdrop) {
       updateLandingCinematic(delta);
-      if (water) {
-        water.material.uniforms.time.value += delta * 0.55;
-      }
+      if (ocean) ocean.update(delta);
       renderer.render(scene, camera);
       return;
     }
@@ -2424,10 +2852,7 @@ function animate() {
     // Update camera focal positions
     updateCameras();
 
-    // Rotate water normals texture
-    if (water) {
-      water.material.uniforms["time"].value += delta * physics.value.waveFrequency;
-    }
+    if (ocean) ocean.update(delta);
 
     if (activeCamera.value === 'orbit') {
       orbitControls.update();
@@ -2481,22 +2906,93 @@ watch(activeScreen, (screen) => {
     }
     document.body.style.cursor = 'auto';
   } else {
-    applyEnvironmentPreset('day');
-    landingBoatPoseActive = false;
     if (camera) {
       camera.fov = DEFAULT_CAMERA_FOV;
       camera.updateProjectionMatrix();
     }
     if (screen === 'simulation') {
-      restoreBoatSimPose();
+      syncWorldForSimulation();
       document.body.style.cursor = 'none';
     } else {
+      applyEnvironmentPreset('day');
+      landingBoatPoseActive = false;
+      if (islandGroup) islandGroup.visible = true;
       document.body.style.cursor = 'auto';
     }
   }
 
   if (screen === 'simulation') {
     requestAnimationFrame(() => updateCompassStripViewportWidth());
+  }
+});
+
+watch(graphicsQuality, (newQuality) => {
+  if (!renderer) return;
+  switch (newQuality) {
+    case 'low':
+      renderer.setPixelRatio(1);
+      break;
+    case 'medium':
+      renderer.setPixelRatio(window.devicePixelRatio > 1 ? 1.5 : 1);
+      break;
+    case 'high':
+      renderer.setPixelRatio(window.devicePixelRatio);
+      break;
+    case 'ultra':
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      break;
+  }
+});
+
+watch(waterQuality, (newQuality) => {
+  if (!ocean) return;
+  switch (newQuality) {
+    case 'low':
+      ocean.setOpacityScale(0.88);
+      break;
+    case 'medium':
+      ocean.setOpacityScale(1);
+      break;
+    case 'high':
+      ocean.setOpacityScale(1.05);
+      break;
+  }
+});
+
+watch(shadowQuality, (newQuality) => {
+  if (!renderer) return;
+  switch (newQuality) {
+    case 'off':
+      renderer.shadowMap.enabled = false;
+      break;
+    case 'low':
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.BasicShadowMap;
+      break;
+    case 'medium':
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
+      break;
+    case 'high':
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      break;
+  }
+});
+
+watch(uiScale, (newScale) => {
+  document.documentElement.style.fontSize = `${parseFloat(newScale) * 16}px`;
+});
+
+watch(showFPS, (newShow) => {
+  const fpsElement = document.getElementById('fps-counter');
+  if (newShow && !fpsElement) {
+    const fpsDiv = document.createElement('div');
+    fpsDiv.id = 'fps-counter';
+    fpsDiv.style.cssText = 'position:fixed;top:10px;left:10px;background:transparent;color:#fff;padding:8px 12px;border-radius:4px;font-family:monospace;z-index:10000;text-shadow:1px 1px 2px rgba(0,0,0,0.8);';
+    document.body.appendChild(fpsDiv);
+  } else if (!newShow && fpsElement) {
+    fpsElement.remove();
   }
 });
 
@@ -2517,9 +3013,15 @@ onUnmounted(() => {
   cancelAnimationFrame(animationFrameId);
   if (clockIntervalId) window.clearInterval(clockIntervalId);
   cancelExitHold();
+  if (islandWarningTimerId) {
+    window.clearTimeout(islandWarningTimerId);
+    islandWarningTimerId = null;
+  }
+  islandCollisionWarning.value = false;
   disposeMouseLook();
   window.removeEventListener('keydown', onLandingKeyDown);
   window.removeEventListener('resize', onWindowResize);
+  ocean?.dispose?.();
   if (renderer) {
     renderer.dispose();
   }
@@ -3239,6 +3741,19 @@ onUnmounted(() => {
   letter-spacing: 1px;
 }
 
+.island-collision-warning {
+  bottom: 190px;
+  background: rgba(234, 88, 12, 0.95);
+  border-color: rgba(255, 237, 213, 0.75);
+  box-shadow: 0 12px 40px rgba(234, 88, 12, 0.55);
+}
+
+.island-collision-warning p {
+  text-transform: none;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
 .mission-objective-box {
   position: absolute;
   top: 10px;
@@ -3600,8 +4115,9 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(2, 6, 23, 0.65);
+  background: rgba(2, 6, 23, 0.85);
   padding: 18px;
+  z-index: 1000;
 }
 
 .menu-settings-card {
@@ -3642,6 +4158,36 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.menu-settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+}
+
+.setting-row input[type="range"] {
+  width: 120px;
+  cursor: pointer;
+}
+
+.setting-row select {
+  padding: 6px 10px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
 /* Fatal Error Hud Overlay */
